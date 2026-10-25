@@ -8,6 +8,10 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+# Jenkins passes its build number so the running app shows which build is deployed
+ARG APP_VERSION=dev
+ENV VITE_APP_VERSION=$APP_VERSION
 RUN npm run build
 
 # Production stage

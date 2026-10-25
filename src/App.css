@@ -64,6 +64,12 @@ body {
   letter-spacing: -0.025em;
 }
 
+.sidebar-header .app-version {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--color-navy-light);
+}
+
 .sidebar-nav {
   padding: 16px 12px;
   display: flex;

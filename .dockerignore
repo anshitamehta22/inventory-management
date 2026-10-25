@@ -3,3 +3,5 @@ node_modules
 dist
 .git
 .vscode
+k8s
+Jenkinsfile

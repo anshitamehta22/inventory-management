@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import './App.css';
+import {
+  formatINR,
+  summarize,
+  filterProducts,
+  validateProduct,
+  categorySummary as summarizeByCategory
+} from './inventory';
 
-// Helper function to format numbers as Indian Rupees (INR)
-const formatINR = (value) => {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2
-  }).format(value);
-};
+// Jenkins passes its build number as a Docker build arg, so each deployment is identifiable
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || 'dev';
 
 function App() {
   // Load initial state from localStorage, or default to an empty array
@@ -36,22 +37,16 @@ function App() {
   }, [products]);
 
   // Derived calculations for Dashboard and Reports
-  const totalProducts = products.length;
-  const totalStockUnits = products.reduce((sum, p) => sum + Number(p.quantity), 0);
-  const lowStockCount = products.filter(p => Number(p.quantity) <= 5).length;
-  const totalInventoryValue = products.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.price)), 0);
+  const { totalProducts, totalStockUnits, lowStockCount, totalInventoryValue } = summarize(products);
 
   // Get unique categories for filtering
   const categories = ['all', ...new Set(products.map(p => p.category))];
 
   // Filter logic for the inventory table
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || p.category === filterCategory;
-    const matchesStatus = filterStatus === 'all' || 
-      (filterStatus === 'low' && Number(p.quantity) <= 5) || 
-      (filterStatus === 'normal' && Number(p.quantity) > 5);
-    return matchesSearch && matchesCategory && matchesStatus;
+  const filteredProducts = filterProducts(products, {
+    searchTerm,
+    category: filterCategory,
+    status: filterStatus
   });
 
   // Handle form input changes
@@ -65,30 +60,16 @@ function App() {
   const handleSubmit = (e) => {
     e.preventDefault();
     const { name, category, quantity, price } = formData;
-    
-    // Validation: Check for empty fields
-    if (!name.trim() || !category.trim() || quantity === '' || price === '') {
-      setError('All fields are required.');
+
+    // Validation: empty fields, negative values and duplicate names
+    const validationError = validateProduct(formData, products, editingId);
+    if (validationError) {
+      setError(validationError);
       return;
     }
-    
+
     const qty = Number(quantity);
     const prc = Number(price);
-    
-    // Validation: Prevent negative values
-    if (qty < 0 || prc < 0) {
-      setError('Quantity and price cannot be negative.');
-      return;
-    }
-
-    // Duplicate check: case-insensitive and ignoring extra spaces
-    const normalizedName = name.trim().toLowerCase();
-    const existingProduct = products.find(p => p.name.trim().toLowerCase() === normalizedName);
-
-    if (existingProduct && !editingId) {
-      setError(`Product "${name}" already exists. Please edit the existing product to update its stock.`);
-      return;
-    }
 
     if (editingId) {
       // Update existing product
@@ -335,12 +316,7 @@ function App() {
 
   // --- VIEW: Reports ---
   const renderReports = () => {
-    const categorySummary = categories.filter(c => c !== 'all').map(cat => {
-      const catProducts = products.filter(p => p.category === cat);
-      const totalQty = catProducts.reduce((sum, p) => sum + Number(p.quantity), 0);
-      const totalVal = catProducts.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.price)), 0);
-      return { category: cat, count: catProducts.length, totalQty, totalVal };
-    });
+    const categorySummary = summarizeByCategory(products);
 
     return (
       <div className="reports-view">
@@ -397,6 +373,7 @@ function App() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <h1>Inventory MS</h1>
+          <p className="app-version">Build {APP_VERSION}</p>
         </div>
         <nav className="sidebar-nav">
           <button 
