@@ -399,7 +399,7 @@ function App() {
       
       <main className="main-content">
         <header className="top-header">
-          <h2>Inventory Management System - v4 (CI/CD Deployed)</h2>
+          <h2>Inventory Management System - v5 (CI/CD Deployed)</h2>
           <div className="user-profile">Admin</div>
         </header>
         
