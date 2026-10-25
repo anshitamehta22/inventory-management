@@ -113,6 +113,14 @@ ssh -i your-key.pem -L 8081:localhost:8081 ubuntu@<EC2-public-IP>
 
 Then visit `http://localhost:8081`.
 
+Or do both in one command from the laptop (`-t` makes Ctrl-C also stop the port-forward on EC2):
+
+```sh
+ssh -t -i your-key.pem -L 8081:localhost:8081 ubuntu@<EC2-public-IP> "sudo -u jenkins -H kubectl port-forward service/inventory-management 8081:80"
+```
+
+The port-forward attaches to one pod, so restart it after each redeployment.
+
 **B. Public URL.** Open port 8081 in the security group, then on EC2:
 
 ```sh
@@ -135,6 +143,24 @@ Visit `http://<EC2-public-IP>:8081`.
 
 4. Within about 2 minutes Jenkins starts build #2 on its own (or click **Build Now**).
 5. Show: the new build's stages all green, the `:2` tag on Docker Hub, `kubectl rollout history` with revision 2, and the refreshed app showing the new header and **Build 2**.
+
+### What actually ran
+
+| Build | Trigger | Commit | Result |
+|---|---|---|---|
+| #1 | First SCM poll | `b6d00a1` | Failed at Push Image: the `dockerhub-credentials` credential had not been added yet. Checkout, tests and Docker build passed |
+| #2 | Build Now | `b6d00a1` | **Success** - first deployment, image `anshitamehta/inventory-management:2`, app shows *Build 2* |
+| #3 | **Automatic (SCM change)** | `965f992` | **Success** - header changed from "Basic Inventory Management System" to "Inventory Management System - v2 (CI/CD Deployed)", image `:3`, app shows *Build 3* |
+
+`kubectl rollout history deployment/inventory-management` after build #3:
+
+```
+REVISION  CHANGE-CAUSE
+1         Jenkins build 2 (b6d00a1)
+2         Jenkins build 3 (965f992)
+```
+
+Environment used: EC2 `m7i-flex.large` (2 vCPU, 8 GB, free-tier eligible) in ap-south-1, Ubuntu 24.04, Jenkins 2.580.1 (Java 21), Minikube v1.39 with Kubernetes v1.37, Docker Hub repository `anshitamehta/inventory-management`.
 
 ## 8. Run locally
 
