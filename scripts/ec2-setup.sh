@@ -6,9 +6,17 @@
 # Usage on the EC2 instance:  bash scripts/ec2-setup.sh
 set -euo pipefail
 
+# Refresh the Jenkins apt key first, so a stale key never breaks apt-get update on a rerun
+echo "==> Jenkins apt repository"
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL -o /etc/apt/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
+  | sudo tee /etc/apt/sources.list.d/jenkins.list >/dev/null
+
 echo "==> Base packages"
 sudo apt-get update -y
-sudo apt-get install -y ca-certificates curl gnupg git fontconfig openjdk-17-jre conntrack
+sudo apt-get install -y ca-certificates curl gnupg git fontconfig openjdk-21-jre conntrack
 
 echo "==> Docker"
 if ! command -v docker >/dev/null 2>&1; then
@@ -17,15 +25,7 @@ fi
 sudo systemctl enable --now docker
 
 echo "==> Jenkins"
-if ! command -v jenkins >/dev/null 2>&1; then
-  sudo install -m 0755 -d /etc/apt/keyrings
-  sudo curl -fsSL -o /etc/apt/keyrings/jenkins-keyring.asc \
-    https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
-  echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
-    | sudo tee /etc/apt/sources.list.d/jenkins.list >/dev/null
-  sudo apt-get update -y
-  sudo apt-get install -y jenkins
-fi
+sudo apt-get install -y jenkins
 # Jenkins must be able to run docker without sudo
 sudo usermod -aG docker jenkins
 sudo usermod -aG docker "$USER"
